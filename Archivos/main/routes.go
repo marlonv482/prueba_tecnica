@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -27,14 +28,17 @@ func Routes() *chi.Mux {
 
 func getEmailHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
+	//q := r.URL.Query()
 
+	//from := q.Get("id")
 	query := `{
 		        "search_type": "alldocuments",
-				
+				"from": 5000,
+				"max_results": 10,
 		        "_source": []
 
 		    }`
-	req, err := http.NewRequest("POST", "http://localhost:4080/api/email/_search", strings.NewReader(query))
+	req, err := http.NewRequest("POST", "http://localhost:4080/api/emails/_search", strings.NewReader(query))
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,7 +56,7 @@ func getEmailHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(body)
 	}
-
+	fmt.Println(string(body))
 	//res := map[string]interface{}{"index": string(body)}
 	_ = json.NewEncoder(w).Encode(string(body))
 }
