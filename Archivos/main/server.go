@@ -14,7 +14,7 @@ type MyServer struct {
 
 func NewServer(mux *chi.Mux) *MyServer {
 	s := &http.Server{
-		Addr:           ":9000",
+		Addr:           ":9001",
 		Handler:        mux,
 		ReadTimeout:    10 * time.Second,
 		WriteTimeout:   10 * time.Second,

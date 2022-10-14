@@ -11,21 +11,8 @@ import (
 	"strings"
 )
 
-type Re_Email struct {
-	Header  string
-	From    string
-	Sent    string
-	To      string
-	Date    string
-	CC      string
-	Subject string
-	Content string
-
-	re any
-}
 type Email struct {
-	//User                      string
-	//Directorio                string
+	Directorio                string
 	Message_ID                string
 	Date                      string
 	From                      string
@@ -44,16 +31,13 @@ type Email struct {
 	X_Origin                  string
 	X_FileName                string
 	Content                   string
-	re                        Re_Email
 }
 
 func IngresarEmails() {
-
 	usuarios, err := ioutil.ReadDir("../../enron_mail_20110402/maildir")
 	if err != nil {
 		log.Fatal(err)
 	}
-
 	for _, usuario := range usuarios {
 		directorios, error := ioutil.ReadDir("../../enron_mail_20110402/maildir/" + usuario.Name())
 		if error != nil {
@@ -61,23 +45,11 @@ func IngresarEmails() {
 		}
 		var emails []Email
 		for _, directorio := range directorios {
-
-			archivos, error := ioutil.ReadDir("../../enron_mail_20110402/maildir/" + usuario.Name() + "/" + directorio.Name())
-			if error != nil {
-				emails = append(emails, Emails("../../enron_mail_20110402/maildir/"+usuario.Name()+"/"+directorio.Name()))
-				//log.Fatal(error)
+			if directorio.IsDir() {
+				emails = append(emails, ObtenerArchivos(("../../enron_mail_20110402/maildir/" + usuario.Name() + "/" + directorio.Name()))...)
+			} else {
+				emails = append(emails, Emails(("../../enron_mail_20110402/maildir/" + usuario.Name() + "/" + directorio.Name())))
 			}
-
-			for _, archivo := range archivos {
-
-				if error != nil {
-					log.Fatal(archivo)
-				}
-				//emails.PushBack(Emails(usuario.Name(), directorio.Name(), archivo.Name()))
-				emails = append(emails, Emails("../../enron_mail_20110402/maildir/"+usuario.Name()+"/"+directorio.Name()+"/"+archivo.Name()))
-
-			}
-
 		}
 		res := map[string]interface{}{"index": "emails", "records": emails}
 		resJSON, err := json.Marshal(res)
@@ -85,20 +57,20 @@ func IngresarEmails() {
 		if err != nil {
 			panic(err)
 		}
-		defer file.Close()
-
 		_, err = file.WriteString(string(resJSON))
 		if err != nil {
 			panic(err)
 		}
-		fmt.Println("cambio de directorio")
+		file.Close()
 		cmd := "curl http://localhost:4080/api/_bulkv2 -i -u admin:0208Mavl  --data-binary '@ejemplo.json'"
-		out := string(Cmd(cmd, true))
-		//out := string(Cmd(cmd,false))
-		fmt.Println(out)
-		//
+		out, err := exec.Command("bash", "-c", cmd).Output()
+		if err != nil {
+			log.Fatal(err)
+			fmt.Println(out)
+		}
 
 	}
+
 	fmt.Println("termino")
 }
 func Emails(dir string) Email {
@@ -109,7 +81,7 @@ func Emails(dir string) Email {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	email.Directorio = dir
 	fileScanner := bufio.NewScanner(archivoAbierto)
 	fileScanner.Split(bufio.ScanLines)
 	var lines []string
@@ -121,35 +93,40 @@ func Emails(dir string) Email {
 	for i < len(lines) {
 
 		nombresComoArreglo := strings.Split(lines[i], ":")
-		switch nombresComoArreglo[0] {
-		case "Message-ID":
+		var prefijo string = strings.ToLower(nombresComoArreglo[0])
+		if prefijo == "message-id" {
 			email.Message_ID = nombresComoArreglo[1]
-		case "Date":
+		} else if prefijo == "date" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.Date = nombresComoArreglo[1]
+				for j := 2; j < len(nombresComoArreglo); j++ {
+					email.Date = email.Date + ":" + nombresComoArreglo[j]
+				}
 			}
-		case "From":
+		} else if prefijo == "from" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.From = nombresComoArreglo[1]
 			}
-
-		case "To":
+		} else if prefijo == "to" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 && email.X_FileName == "" {
 				email.To = nombresComoArreglo[1]
-				if strings.Split(lines[i+1], ":")[0] != "Subject" {
-					if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "cc" {
+				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+				if comodin != "subject" {
+					if comodin != "cc" {
 						var val bool = true
 						for val {
 							if email.X_FileName != "" {
 								val = false
 							}
 							if len(lines) > (i + 1) {
-								if strings.Split(lines[i+1], ":")[0] != "Subject" {
-									if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "cc" {
-										//fmt.Println(strings.Split(lines[(i+1)], ":")[0])
-										email.To = email.To + strings.Split(lines[(i+1)], ":")[0]
+								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+								if comodin != "subject" {
+									if comodin != "cc" {
+										c := strings.Split(lines[(i+1)], ":")
+										for j := 0; j < len(c); j++ {
+											email.To = email.To + ":" + c[j]
+										}
 										i++
-
 									} else {
 										val = false
 									}
@@ -162,32 +139,28 @@ func Emails(dir string) Email {
 
 				}
 			}
-
-		case "Subject":
+		} else if prefijo == "subject" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 && email.X_FileName == "" {
-				if nombresComoArreglo[1] == "Re" || nombresComoArreglo[1] == "RE" {
-					if len(nombresComoArreglo) > 2 {
-						email.Subject = "RE: " + nombresComoArreglo[2]
-					}
-				} else if nombresComoArreglo[1] == "FW" || nombresComoArreglo[1] == "fw" {
-					if len(nombresComoArreglo) > 2 {
-						email.Subject = "FW: " + nombresComoArreglo[2]
-					}
-				} else {
-					email.Subject = nombresComoArreglo[1]
+				email.Subject = nombresComoArreglo[1]
+				for j := 2; j < len(nombresComoArreglo); j++ {
+					email.Subject = email.Subject + ":" + nombresComoArreglo[j]
 				}
-				if strings.Split(lines[i+1], ":")[0] != "Cc" {
-					if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "mime-version" {
+				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+				if comodin != "cc" {
+					if comodin != "mime-version" {
 						var val bool = true
 						for val {
 							if email.X_FileName != "" {
 								val = false
 							}
 							if len(lines) > (i + 1) {
-								if strings.Split(lines[i+1], ":")[0] != "Cc" {
-									if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "mime-version" {
-										//fmt.Println(strings.Split(lines[(i+1)], ":")[0])
-										email.Subject = email.Subject + strings.Split(lines[(i+1)], ":")[0]
+								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+								if comodin != "cc" {
+									if comodin != "mime-version" {
+										c := strings.Split(lines[(i+1)], ":")
+										for j := 0; j < len(c); j++ {
+											email.Subject = email.Subject + ":" + c[j]
+										}
 										i++
 
 									} else {
@@ -202,21 +175,25 @@ func Emails(dir string) Email {
 
 				}
 			}
-		case "Cc":
+		} else if prefijo == "cc" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 && email.X_FileName == "" {
 				email.Cc = nombresComoArreglo[1]
-				if strings.Split(lines[i+1], ":")[0] != "Mime-Version" {
-					if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "mime-version" {
+				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+				if comodin != "mime-version" {
+					if comodin != "content-type" {
 						var val bool = true
 						for val {
 							if email.X_FileName != "" {
 								val = false
 							}
 							if len(lines) > (i + 1) {
-								if strings.Split(lines[i+1], ":")[0] != "Mime-Version" {
-									if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "content-type" {
-										//fmt.Println(strings.Split(lines[(i+1)], ":")[0])
-										email.Cc = email.Cc + strings.Split(lines[(i+1)], ":")[0]
+								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+								if comodin != "mime-version" {
+									if comodin != "content-type" {
+										c := strings.Split(lines[(i+1)], ":")
+										for j := 0; j < len(c); j++ {
+											email.Cc = email.Cc + ":" + c[j]
+										}
 										i++
 
 									} else {
@@ -231,31 +208,60 @@ func Emails(dir string) Email {
 
 				}
 			}
-		case "Mime-Version":
+		} else if prefijo == "mime-version" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.Mime_Version = nombresComoArreglo[1]
 			}
-		case "Content-Type":
+		} else if prefijo == "content-type" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.Content_Type = nombresComoArreglo[1]
 			}
-		case "Content-Transfer-Encoding":
+		} else if prefijo == "content-transfer-encoding" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.Content_Transfer_Encoding = nombresComoArreglo[1]
 			}
-		case "Bcc":
+		} else if prefijo == "bcc" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.Bcc = nombresComoArreglo[1]
+				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+				if comodin != "x-from" {
+					if comodin != "x-to" {
+						var val bool = true
+						for val {
+							if email.X_FileName != "" {
+								val = false
+							}
+							if len(lines) > (i + 1) {
+								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+								if comodin != "x-from" {
+									if comodin != "x-bcc" {
+										c := strings.Split(lines[(i+1)], ":")
+										for j := 0; j < len(c); j++ {
+											email.Bcc = email.Bcc + ":" + c[j]
+										}
+										i++
+
+									} else {
+										val = false
+									}
+								} else {
+									val = false
+								}
+							}
+						}
+					}
+				}
 			}
-		case "X-From":
+		} else if prefijo == "x-from" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.X_From = nombresComoArreglo[1]
 			}
-		case "X-To":
+		} else if prefijo == "x-to" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 && email.X_FileName == "" {
 				email.X_To = nombresComoArreglo[1]
-				if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "x-cc" {
-					if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "x-bcc" {
+				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+				if comodin != "x-cc" {
+					if comodin != "x-bcc" {
 
 						var val bool = true
 						for val {
@@ -263,10 +269,13 @@ func Emails(dir string) Email {
 								val = false
 							}
 							if len(lines) > (i + 1) {
-								if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "x-cc" {
-									if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "x-bcc" {
-										//fmt.Println(strings.Split(lines[(i+1)], ":")[0])
-										email.X_To = email.To + strings.Split(lines[(i+1)], ":")[0]
+								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+								if comodin != "x-cc" {
+									if comodin != "x-bcc" {
+										c := strings.Split(lines[(i+1)], ":")
+										for j := 0; j < len(c); j++ {
+											email.X_To = email.X_To + ":" + c[j]
+										}
 										i++
 
 									} else {
@@ -278,25 +287,27 @@ func Emails(dir string) Email {
 							}
 						}
 					}
-
 				}
 			}
-
-		case "X-cc":
+		} else if prefijo == "x-cc" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 && email.X_FileName == "" {
 				email.X_cc = nombresComoArreglo[1]
-				if strings.Split(lines[i+1], ":")[0] != "X-bcc" {
-					if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "x-folder" {
+				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+				if comodin != "x-bcc" {
+					if comodin != "x-folder" {
 						var val bool = true
 						for val {
 							if email.X_FileName != "" {
 								val = false
 							}
 							if len(lines) > (i + 1) {
-								if strings.Split(lines[i+1], ":")[0] != "X-bcc" {
-									if strings.ToLower(strings.Split(lines[i+1], ":")[0]) != "x-folder" {
-										//fmt.Println(strings.Split(lines[(i+1)], ":")[0])
-										email.X_cc = email.X_cc + strings.Split(lines[(i+1)], ":")[0]
+								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+								if comodin != "x-bcc" {
+									if comodin != "x-folder" {
+										c := strings.Split(lines[(i+1)], ":")
+										for j := 0; j < len(c); j++ {
+											email.X_cc = email.X_cc + ":" + c[j]
+										}
 										i++
 
 									} else {
@@ -311,157 +322,75 @@ func Emails(dir string) Email {
 
 				}
 			}
-		case "X-bcc":
+		} else if prefijo == "x-bcc" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.X_bcc = nombresComoArreglo[1]
+				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+				if comodin != "x-folder" {
+					if comodin != "x-origin" {
+						var val bool = true
+						for val {
+							if email.X_FileName != "" {
+								val = false
+							}
+							if len(lines) > (i + 1) {
+								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+								if comodin != "x-folder" {
+									if comodin != "x-origin" {
+										c := strings.Split(lines[(i+1)], ":")
+										for j := 0; j < len(c); j++ {
+											email.X_bcc = email.X_bcc + ":" + c[j]
+										}
+										i++
+
+									} else {
+										val = false
+									}
+								} else {
+									val = false
+								}
+							}
+						}
+					}
+				}
 			}
-		case "X-Folder":
+		} else if prefijo == "x-folder" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.X_Folder = nombresComoArreglo[1]
 			}
-		case "X-Origin":
+		} else if prefijo == "x-origin" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.X_Origin = nombresComoArreglo[1]
 			}
-		case "X-FileName":
+		} else if prefijo == "x-filename" {
 			if len(nombresComoArreglo) > 1 {
 				email.X_FileName = nombresComoArreglo[1]
 			}
-		case " -----Original Message-----":
-			email.re = addEmail(i, dir)
-
-			i = len(lines)
-		case "-----Original Message-----":
-			email.re = addEmail(i, dir)
-
-			i = len(lines)
-		case "----- Original Message-----":
-			email.re = addEmail(i, dir)
-
-			i = len(lines)
-		case "--------- Inline attachment follows ---------":
-			email.re = addEmail(i, dir)
-
-			i = len(lines)
-		default:
-			if len(strings.Split(nombresComoArreglo[0], "---------------------- Forwarded by")) == 1 {
-				email.Content = email.Content + `\n` + nombresComoArreglo[0]
-			} else {
-				email.re = addEmail(i, dir)
-
-				i = len(lines)
+		} else {
+			for j := i; j < len(lines); j++ {
+				email.Content = email.Content + lines[j] + `\n`
 			}
-
+			i = len(lines)
 		}
 		i++
-
 	}
-
-	return email
-
-}
-
-func addEmail(j int, dir string) Re_Email {
-
-	archivoAbierto, err := os.Open(dir)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	fileScanner := bufio.NewScanner(archivoAbierto)
-	fileScanner.Split(bufio.ScanLines)
-	var lines []string
-	for fileScanner.Scan() {
-		lines = append(lines, fileScanner.Text())
-	}
-	archivoAbierto.Close()
-	var email Re_Email
-	if len(strings.Split(lines[j], "---------------------- Forwarded by")) == 1 {
-		email.Header = lines[j]
-	} else {
-		email.Header = lines[j] + lines[j+1]
-		j++
-	}
-	j++
-	for i := j; i < len(lines); i++ {
-		nombresComoArreglo := strings.Split(lines[i], ":")
-		switch strings.ToLower(nombresComoArreglo[0]) {
-		case "from":
-			if len(nombresComoArreglo) > 1 {
-				email.From = nombresComoArreglo[1]
-			}
-		case "to":
-			if len(nombresComoArreglo) > 1 {
-				email.To = nombresComoArreglo[1]
-			}
-		case "sent":
-			if len(nombresComoArreglo) > 1 {
-				email.Sent = nombresComoArreglo[1]
-			}
-		case "cc":
-			if len(nombresComoArreglo) > 1 {
-				email.CC = nombresComoArreglo[1]
-			}
-		case "date":
-			if len(nombresComoArreglo) > 1 {
-				email.Date = nombresComoArreglo[1]
-			}
-		case "subject":
-			if len(nombresComoArreglo) > 1 {
-				if nombresComoArreglo[1] == "Re" || nombresComoArreglo[1] == "RE" {
-					if len(nombresComoArreglo) > 2 {
-						email.Subject = "RE: " + nombresComoArreglo[2]
-					}
-				} else if nombresComoArreglo[1] == "FW" || nombresComoArreglo[1] == "fw" {
-					if len(nombresComoArreglo) > 2 {
-						email.Subject = "FW: " + nombresComoArreglo[2]
-					}
-				} else {
-					email.Subject = nombresComoArreglo[1]
-				}
-			}
-		case " -----original message-----":
-			email.re = addEmail(i, dir)
-
-			i = len(lines)
-		case "-----original message-----":
-			email.re = addEmail(i, dir)
-
-			i = len(lines)
-		case "----- original message-----":
-			email.re = addEmail(i, dir)
-
-			i = len(lines)
-		case "--------- inline attachment follows ---------":
-			email.re = addEmail(i, dir)
-
-			i = len(lines)
-		default:
-
-			if len(strings.Split(nombresComoArreglo[0], "---------------------- Forwarded by")) == 1 {
-				email.Content = email.Content + `\n` + nombresComoArreglo[0]
-			} else {
-				i = len(lines)
-			}
-
-		}
-	}
-
 	return email
 }
+func ObtenerArchivos(dir string) []Email {
 
-func Cmd(cmd string, shell bool) []byte {
-	if shell {
-		out, err := exec.Command("bash", "-c", cmd).Output()
-		if err != nil {
-			panic("some error found")
+	var emails []Email
+	archivos, error := ioutil.ReadDir(dir)
+	for _, archivo := range archivos {
+		if error != nil {
+			log.Fatal(error)
 		}
-		return out
-	} else {
-		out, err := exec.Command(cmd).Output()
-		if err != nil {
-			panic("some error found")
+		if archivo.IsDir() {
+			dir := dir + "/" + archivo.Name()
+			emails = append(emails, ObtenerArchivos((dir))...)
+
+		} else {
+			emails = append(emails, Emails(dir+"/"+archivo.Name()))
 		}
-		return out
 	}
+	return emails
 }

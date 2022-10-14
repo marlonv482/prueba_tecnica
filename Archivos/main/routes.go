@@ -2,39 +2,35 @@ package main
 
 import (
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"strings"
 
-	"github.com/go-chi/chi"
-	"github.com/go-chi/chi/middleware"
-	//"github.com/tomiok/course-phones-review/gadgets/smartphones/web"
-	//reviews "github.com/tomiok/course-phones-review/reviews/web"
+	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
-func Routes() *chi.Mux {
-	mux := chi.NewMux()
-	mux.Use(
-		middleware.Logger,    //log every http request
-		middleware.Recoverer, // recover if a panic occurs
-	)
-
-	mux.Get("/getEmails", getEmailHandler)
-
-	return mux
+func Routes() {
+	r := chi.NewRouter()
+	r.Use(
+		middleware.Logger)
+	r.Get("/getEmails/{from}", getEmailHandler)
+	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
+		w.Write([]byte("Hello World!"))
+	})
+	http.ListenAndServe(":9001", r)
 }
 
 func getEmailHandler(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Access-Control-Allow-Origin", "*")
-	//q := r.URL.Query()
 
-	//from := q.Get("id")
+	from := chi.URLParam(r, "from")
+
 	query := `{
 		        "search_type": "alldocuments",
-				"from": 5000,
-				"max_results": 10,
+				"from": ` + from + `,
+				"max_results": 1000,
 		        "_source": []
 
 		    }`
@@ -50,13 +46,11 @@ func getEmailHandler(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Fatal(err)
 	}
-	defer resp.Body.Close()
-	log.Println(resp.StatusCode)
+
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(body)
 	}
-	fmt.Println(string(body))
-	//res := map[string]interface{}{"index": string(body)}
-	_ = json.NewEncoder(w).Encode(string(body))
+	defer resp.Body.Close()
+	json.NewEncoder(w).Encode(string(body))
 }
