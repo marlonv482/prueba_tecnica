@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -34,19 +35,20 @@ func getEmailHandler(w http.ResponseWriter, r *http.Request) {
 		        "_source": []
 
 		    }`
+
 	req, err := http.NewRequest("POST", "http://localhost:4080/api/emails/_search", strings.NewReader(query))
 	if err != nil {
 		log.Fatal(err)
 	}
 	req.SetBasicAuth("admin", "0208Mavl")
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36")
+	//req.Header.Set("User-Agent", "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/81.0.4044.138 Safari/537.36")
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	fmt.Println(resp.Body)
 	body, err := io.ReadAll(resp.Body)
 	if err != nil {
 		log.Fatal(body)

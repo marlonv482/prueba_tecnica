@@ -110,33 +110,27 @@ func Emails(dir string) Email {
 		} else if prefijo == "to" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 && email.X_FileName == "" {
 				email.To = nombresComoArreglo[1]
-				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-				if comodin != "subject" {
-					if comodin != "cc" {
-						var val bool = true
-						for val {
-							if email.X_FileName != "" {
+				var val bool = true
+				if email.X_FileName != "" {
+					val = false
+				}
+				for val {
+					if len(lines) > (i + 1) {
+						comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+						if comodin != "subject" {
+							if comodin != "cc" {
+								c := strings.Split(lines[(i+1)], ":")
+								for j := 0; j < len(c); j++ {
+									email.To = email.To + ":" + c[j]
+								}
+								i++
+							} else {
 								val = false
 							}
-							if len(lines) > (i + 1) {
-								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-								if comodin != "subject" {
-									if comodin != "cc" {
-										c := strings.Split(lines[(i+1)], ":")
-										for j := 0; j < len(c); j++ {
-											email.To = email.To + ":" + c[j]
-										}
-										i++
-									} else {
-										val = false
-									}
-								} else {
-									val = false
-								}
-							}
+						} else {
+							val = false
 						}
 					}
-
 				}
 			}
 		} else if prefijo == "subject" && email.X_FileName == "" {
@@ -145,67 +139,55 @@ func Emails(dir string) Email {
 				for j := 2; j < len(nombresComoArreglo); j++ {
 					email.Subject = email.Subject + ":" + nombresComoArreglo[j]
 				}
-				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-				if comodin != "cc" {
-					if comodin != "mime-version" {
-						var val bool = true
-						for val {
-							if email.X_FileName != "" {
+				var val bool = true
+				if email.X_FileName != "" {
+					val = false
+				}
+				for val {
+					if len(lines) > (i + 1) {
+						comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+						if comodin != "cc" {
+							if comodin != "mime-version" {
+								c := strings.Split(lines[(i+1)], ":")
+								for j := 0; j < len(c); j++ {
+									email.Subject = email.Subject + ":" + c[j]
+								}
+								i++
+							} else {
 								val = false
 							}
-							if len(lines) > (i + 1) {
-								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-								if comodin != "cc" {
-									if comodin != "mime-version" {
-										c := strings.Split(lines[(i+1)], ":")
-										for j := 0; j < len(c); j++ {
-											email.Subject = email.Subject + ":" + c[j]
-										}
-										i++
-
-									} else {
-										val = false
-									}
-								} else {
-									val = false
-								}
-							}
+						} else {
+							val = false
 						}
 					}
-
 				}
 			}
 		} else if prefijo == "cc" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 && email.X_FileName == "" {
 				email.Cc = nombresComoArreglo[1]
-				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-				if comodin != "mime-version" {
-					if comodin != "content-type" {
-						var val bool = true
-						for val {
-							if email.X_FileName != "" {
+				var val bool = true
+				if email.X_FileName != "" {
+					val = false
+				}
+				for val {
+
+					if len(lines) > (i + 1) {
+						comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+						if comodin != "mime-version" {
+							if comodin != "content-type" {
+								c := strings.Split(lines[(i+1)], ":")
+								for j := 0; j < len(c); j++ {
+									email.Cc = email.Cc + ":" + c[j]
+								}
+								i++
+
+							} else {
 								val = false
 							}
-							if len(lines) > (i + 1) {
-								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-								if comodin != "mime-version" {
-									if comodin != "content-type" {
-										c := strings.Split(lines[(i+1)], ":")
-										for j := 0; j < len(c); j++ {
-											email.Cc = email.Cc + ":" + c[j]
-										}
-										i++
-
-									} else {
-										val = false
-									}
-								} else {
-									val = false
-								}
-							}
+						} else {
+							val = false
 						}
 					}
-
 				}
 			}
 		} else if prefijo == "mime-version" && email.X_FileName == "" {
@@ -223,31 +205,26 @@ func Emails(dir string) Email {
 		} else if prefijo == "bcc" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.Bcc = nombresComoArreglo[1]
-				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-				if comodin != "x-from" {
-					if comodin != "x-to" {
-						var val bool = true
-						for val {
-							if email.X_FileName != "" {
+				var val bool = true
+				if email.X_FileName != "" {
+					val = false
+				}
+				for val {
+					if len(lines) > (i + 1) {
+						comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+						if comodin != "x-from" {
+							if comodin != "x-bcc" {
+								c := strings.Split(lines[(i+1)], ":")
+								for j := 0; j < len(c); j++ {
+									email.Bcc = email.Bcc + ":" + c[j]
+								}
+								i++
+
+							} else {
 								val = false
 							}
-							if len(lines) > (i + 1) {
-								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-								if comodin != "x-from" {
-									if comodin != "x-bcc" {
-										c := strings.Split(lines[(i+1)], ":")
-										for j := 0; j < len(c); j++ {
-											email.Bcc = email.Bcc + ":" + c[j]
-										}
-										i++
-
-									} else {
-										val = false
-									}
-								} else {
-									val = false
-								}
-							}
+						} else {
+							val = false
 						}
 					}
 				}
@@ -259,32 +236,25 @@ func Emails(dir string) Email {
 		} else if prefijo == "x-to" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 && email.X_FileName == "" {
 				email.X_To = nombresComoArreglo[1]
-				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-				if comodin != "x-cc" {
-					if comodin != "x-bcc" {
-
-						var val bool = true
-						for val {
-							if email.X_FileName != "" {
+				var val bool = true
+				if email.X_FileName != "" {
+					val = false
+				}
+				for val {
+					if len(lines) > (i + 1) {
+						comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+						if comodin != "x-cc" {
+							if comodin != "x-bcc" {
+								c := strings.Split(lines[(i+1)], ":")
+								for j := 0; j < len(c); j++ {
+									email.X_To = email.X_To + ":" + c[j]
+								}
+								i++
+							} else {
 								val = false
 							}
-							if len(lines) > (i + 1) {
-								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-								if comodin != "x-cc" {
-									if comodin != "x-bcc" {
-										c := strings.Split(lines[(i+1)], ":")
-										for j := 0; j < len(c); j++ {
-											email.X_To = email.X_To + ":" + c[j]
-										}
-										i++
-
-									} else {
-										val = false
-									}
-								} else {
-									val = false
-								}
-							}
+						} else {
+							val = false
 						}
 					}
 				}
@@ -292,64 +262,53 @@ func Emails(dir string) Email {
 		} else if prefijo == "x-cc" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 && email.X_FileName == "" {
 				email.X_cc = nombresComoArreglo[1]
-				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-				if comodin != "x-bcc" {
-					if comodin != "x-folder" {
-						var val bool = true
-						for val {
-							if email.X_FileName != "" {
+				var val bool = true
+				if email.X_FileName != "" {
+					val = false
+				}
+				for val {
+					if len(lines) > (i + 1) {
+						comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+						if comodin != "x-bcc" {
+							if comodin != "x-folder" {
+								c := strings.Split(lines[(i+1)], ":")
+								for j := 0; j < len(c); j++ {
+									email.X_cc = email.X_cc + ":" + c[j]
+								}
+								i++
+
+							} else {
 								val = false
 							}
-							if len(lines) > (i + 1) {
-								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-								if comodin != "x-bcc" {
-									if comodin != "x-folder" {
-										c := strings.Split(lines[(i+1)], ":")
-										for j := 0; j < len(c); j++ {
-											email.X_cc = email.X_cc + ":" + c[j]
-										}
-										i++
-
-									} else {
-										val = false
-									}
-								} else {
-									val = false
-								}
-							}
+						} else {
+							val = false
 						}
 					}
-
 				}
 			}
 		} else if prefijo == "x-bcc" && email.X_FileName == "" {
 			if len(nombresComoArreglo) > 1 {
 				email.X_bcc = nombresComoArreglo[1]
-				comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-				if comodin != "x-folder" {
-					if comodin != "x-origin" {
-						var val bool = true
-						for val {
-							if email.X_FileName != "" {
+				var val bool = true
+				if email.X_FileName != "" {
+					val = false
+				}
+				for val {
+					if len(lines) > (i + 1) {
+						comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
+						if comodin != "x-folder" {
+							if comodin != "x-origin" {
+								c := strings.Split(lines[(i+1)], ":")
+								for j := 0; j < len(c); j++ {
+									email.X_bcc = email.X_bcc + ":" + c[j]
+								}
+								i++
+
+							} else {
 								val = false
 							}
-							if len(lines) > (i + 1) {
-								comodin := strings.ToLower(strings.Split(lines[i+1], ":")[0])
-								if comodin != "x-folder" {
-									if comodin != "x-origin" {
-										c := strings.Split(lines[(i+1)], ":")
-										for j := 0; j < len(c); j++ {
-											email.X_bcc = email.X_bcc + ":" + c[j]
-										}
-										i++
-
-									} else {
-										val = false
-									}
-								} else {
-									val = false
-								}
-							}
+						} else {
+							val = false
 						}
 					}
 				}
